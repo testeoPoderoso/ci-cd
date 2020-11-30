@@ -10,8 +10,8 @@ if [[ -z ${STACK_NAME} ]] ; then
 fi
 
 if [[ -z ${S3_BUCKET} ]] ; then
-  echo "No S3 bucket defined, using 'account-cloudformation-templates'."
-  S3_BUCKET="cosmos-cf-templates-dev"
+  echo "No S3 bucket defined, using 'euc-test-brasil."
+  S3_BUCKET="euc-test-brasil"
 fi
 
 FILENAME=$(echo $RANDOM.${STACK_NAME} | openssl dgst -sha1 | sed 's/^.* //')
