@@ -10,7 +10,7 @@ if [[ -z ${STACK_NAME} ]] ; then
 fi
 
 if [[ -z ${S3_BUCKET} ]] ; then
-  echo "No S3 bucket defined, using 'account-cloudformation-templates'."
+  echo "No S3 bucket defined, using 'euc-test-brasil'."
   S3_BUCKET="euc-test-brasil"
 fi
 
@@ -22,5 +22,5 @@ echo ${FILENAME}
 
 aws s3 cp openapi.yaml ${BUCKET} --sse
 
-sam package --output-template-file packaged.yaml --template-file cloudformation.yaml --s3-bucket ${S3_BUCKET} \
+sam build && sam package --output-template-file packaged.yaml --template-file cloudformation.yaml --s3-bucket ${S3_BUCKET} \
 && sam deploy --template-file packaged.yaml --capabilities CAPABILITY_NAMED_IAM --stack-name ${STACK_NAME}
