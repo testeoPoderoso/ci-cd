@@ -44,7 +44,7 @@ Resources:
       Handler: handler.lambda_handler
       MemorySize: 256
       Runtime: python3.7
-      Timeout: 3
+      Timeout: 15
 
   PostConfirmationLambdaFunction:
     Type: AWS::Serverless::Function
