@@ -21,5 +21,5 @@ echo ${BUCKET}
 echo ${FILENAME}
 
 
-sam build && sam package --output-template-file packaged.yaml --template-file cloudformation.yaml --s3-bucket ${S3_BUCKET} \
+sam build --template-file cloudformation.yaml && sam package --output-template-file packaged.yaml --template-file cloudformation.yaml --s3-bucket ${S3_BUCKET} \
 && sam deploy --template-file packaged.yaml --capabilities CAPABILITY_NAMED_IAM --stack-name ${STACK_NAME}
