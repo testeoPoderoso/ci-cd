@@ -123,9 +123,6 @@ Resources:
       UserPoolId: !Ref CognitoUserPool
 
 Outputs:
-  ConnectionsTableArn:
-    Description: Connections table ARN
-    Value: !GetAtt ConnectionsTable.Arn
 
   OnConnectFunctionArn:
     Description: OnConnect function ARN
