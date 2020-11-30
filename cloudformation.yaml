@@ -124,10 +124,6 @@ Resources:
 
 Outputs:
 
-  OnConnectFunctionArn:
-    Description: OnConnect function ARN
-    Value: !GetAtt OnConnectFunction.Arn
-
-  SendMessageFunctionArn:
-    Description: SendMessage function ARN
-    Value: !GetAtt SendMessageFunction.Arn
+   PreSignupLambdaFunctionArn:
+    Description:  PreSignupLambdaFunction function ARN
+    Value: !GetAtt  PreSignupLambdaFunction.Arn
