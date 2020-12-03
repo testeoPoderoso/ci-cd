@@ -20,6 +20,5 @@ BUCKET="s3://$S3_BUCKET/$STACK_NAME/$FILENAME"
 echo ${BUCKET}
 echo ${FILENAME}
 
-echo $PWD
 sam build --template-file cloudformationstep.yaml && sam package --output-template-file packaged.yaml --template-file cloudformationstep.yaml --s3-bucket ${S3_BUCKET} \
 && sam deploy --template-file packaged.yaml --capabilities CAPABILITY_NAMED_IAM --stack-name ${STACK_NAME}
