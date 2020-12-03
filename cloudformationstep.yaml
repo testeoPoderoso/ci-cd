@@ -1,0 +1,354 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SAM Template for a websockets sendmessage.
+Globals:
+  Function:
+    Timeout: 200
+
+Resources:
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: icon_cognito_auth_cognito_user_pool
+      LambdaConfig:
+        PreSignUp: !GetAtt PreSignupLambdaFunction.Arn
+        PostConfirmation: !GetAtt PostConfirmationLambdaFunction.Arn
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: False
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: name
+          Required: True
+          AttributeDataType: String
+        - Name: company
+          Mutable: True
+          Required: False
+          AttributeDataType: String
+          StringAttributeConstraints:
+            MinLength: 1
+            MaxLength: 256
+        - Name: usrl
+          Mutable: True
+          Required: False
+          AttributeDataType: Number
+
+  LambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: Role-permisos
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyName: WriteCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: AllAccessOnS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 's3:*'
+                Resource: '*'
+        - PolicyName: FullOnDynamoDBO
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:*'
+                  - 'dax:*'
+                Resource: '*'
+        - PolicyName: allowLambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - lambda:*
+              Resource: "*"
+        - PolicyName: allowAPIManage
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - 'execute-api:ManageConnections'
+              Resource: "*"
+
+
+  PreSignupLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cognitoHandler/
+      Handler: handler.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 15
+
+  PostConfirmationLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cognitoHandler/
+      Handler: handler.change_user_group
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 3
+      Environment:
+        Variables:
+          ZERO: Operator 
+          ONE: Supervisor
+          TABLE_NAME: !Ref UsersTable
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UsersTable
+      - Statement: 
+          - Effect: Allow
+            Action: cognito-idp:*
+            Resource: '*'
+
+# aca las lambdas de la step function
+  ProcesamientoHander1:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: "Uno.."
+      FunctionName: uno
+      CodeUri: step_function/testing_cicd/
+      Handler: handler.handler1
+      Runtime: python3.7
+      Role: !GetAtt LambdaRole.Arn
+
+  ProcesamientoHander2:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: "Dos.."
+      FunctionName: dos
+      CodeUri: step_function/testing_cicd/
+      Handler: handler.handler2
+      Runtime: python3.7
+      Role: !GetAtt LambdaRole.Arn
+
+  ProcesamientoHander3:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: "El pepe.."
+      FunctionName: tres
+      CodeUri: step_function/testing_cicd/
+      Handler: handler.handler3
+      Runtime: python3.7
+      Role: !GetAtt LambdaRole.Arn
+
+  ProcesamientoFallback:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: "Envia alerta de falla de ejecucion step"
+      FunctionName: fallback
+      CodeUri: step_function/codes-fallback/
+      Handler: fail.fail
+      Runtime: python3.7
+      Role: !GetAtt LambdaRole.Arn
+
+  StateExcutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Role-StateExcutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: "StatesExecutionPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "lambda:InvokeFunction"
+                Resource:
+                  - !GetAtt ProcesamientoHander1.Arn
+                  - !GetAtt ProcesamientoHander2.Arn
+                  - !GetAtt ProcesamientoHander3.Arn
+                  - !GetAtt ProcesamientoFallback.Arn
+
+  StepExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Role-StepExecution
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: StateMachineExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "states:StartExecution"
+                Resource:
+                  - !Ref WorkFlow
+
+
+  StepExecution:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Testeando una step para cicd"
+      Name: Rule-ExecutionStep
+      ScheduleExpression: rate(2 minutes)
+      State: "ENABLED"
+      Targets:
+        -
+          Arn: !Ref WorkFlow
+          Id: !GetAtt WorkFlow.Name
+          RoleArn: !GetAtt StepExecutionRole.Arn
+
+  WorkFlow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: state-StateMachine
+      RoleArn: !GetAtt StateExcutionRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "Primera lambda de ejecución",
+          "StartAt": "Handler1",
+          "States": {
+            "Handler1": {
+              "Type": "Task",
+              "Resource": "${ProcesamientoHander1.Arn}",
+              "Next": "Handler2",
+              "Catch": [{
+                "ErrorEquals": ["States.ALL"],
+                "Next": "Fallback"
+                }]
+            },
+            "Handler2": {
+              "Type": "Task",
+              "Resource": "${ProcesamientoHander2.Arn}",
+              "Next": "Handler3",
+              "Catch": [{
+                "ErrorEquals": ["States.ALL"],
+                "Next": "Fallback"
+                }]
+            },
+            "Handler3": {
+              "Type": "Task",
+              "Resource": "${ProcesamientoHander3.Arn}",
+              "End": true
+            },
+            "Fallback": {
+              "Type": "Task",
+              "Resource": "${ProcesamientoFallback.Arn}",
+              "End": true
+            }
+          }
+        }
+
+# Fin de la step
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: user_id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: user_id
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+      SSESpecification:
+        SSEEnabled: True
+
+  PreSignupLambdaFunctionExecutionPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PreSignupLambdaFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}'
+
+  PostConfirmationLambdaFunctionExecutionPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PostConfirmationLambdaFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}'
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: sam_cognito_auth_cognito_client
+      UserPoolId: !Ref CognitoUserPool
+
+  UserPoolGroupAdmins:
+    Type: 'AWS::Cognito::UserPoolGroup'
+    Properties:
+      GroupName: Admin
+      UserPoolId: !Ref CognitoUserPool
+
+  UserPoolGroupOperator:
+    Type: 'AWS::Cognito::UserPoolGroup'
+    Properties:
+      GroupName: Operator
+      UserPoolId: !Ref CognitoUserPool
+
+  UserPoolGroupSupervisor:
+    Type: 'AWS::Cognito::UserPoolGroup'
+    Properties:
+      GroupName: Supervisor
+      UserPoolId: !Ref CognitoUserPool
+
+Outputs:
+
+  PreSignupLambdaFunctionArn:
+    Description:  PreSignupLambdaFunction function ARN
+    Value: !GetAtt  PreSignupLambdaFunction.Arn
+
+  Handler1:
+    Value: !Ref ProcesamientoHander1
+    Description: 'Funcion 1'
+    Export:
+        Name: "uno"
+
+  Handler2:
+    Value: !Ref ProcesamientoHander2
+    Description: 'Funcion 2'
+    Export:
+        Name: "dos"
+
+  Handler3:
+    Value: !Ref ProcesamientoHander3
+    Description: 'Funcion 3'
+    Export:
+        Name: "tres"
+
+  Refresh:
+    Value: !Ref ProcesamientoFallback
+    Description: 'Fallback'
+    Export:
+        Name: "fallback"
