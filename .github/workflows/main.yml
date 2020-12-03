@@ -30,4 +30,4 @@ jobs:
           export "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}"
           echo $PWD
           ls
-          ./deploy.sh aws-webapp-back-${GITHUB_REF##*/}
+          ./deploy_step.sh aws-webapp-back-${GITHUB_REF##*/}
