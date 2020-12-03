@@ -29,5 +29,5 @@ jobs:
           export "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           export "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}"
           echo $PWD
-          ls /home/runner/work/ci-cd/ci-cd/step_funtion/testing_cicd
+          
           ./deploy_step.sh aws-webapp-back-${GITHUB_REF##*/}
