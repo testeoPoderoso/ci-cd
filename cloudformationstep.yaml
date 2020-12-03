@@ -127,7 +127,7 @@ Resources:
   ProcesamientoHander1:
     Type: AWS::Serverless::Function
     Properties:
-      Description: "Uno..."
+      Description: "Uno.."
       FunctionName: uno
       CodeUri: step_function/testing_cicd/
       Handler: handler.handler1
@@ -137,7 +137,7 @@ Resources:
   ProcesamientoHander2:
     Type: AWS::Serverless::Function
     Properties:
-      Description: "Dos..."
+      Description: "Dos.."
       FunctionName: dos
       CodeUri: step_function/testing_cicd/
       Handler: handler.handler2
@@ -147,7 +147,7 @@ Resources:
   ProcesamientoHander3:
     Type: AWS::Serverless::Function
     Properties:
-      Description: "El pepe..."
+      Description: "El pepe.."
       FunctionName: tres
       CodeUri: step_function/testing_cicd/
       Handler: handler.handler3
